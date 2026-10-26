@@ -1,0 +1,1 @@
+ALTER TABLE public.counters ADD COLUMN role text;
