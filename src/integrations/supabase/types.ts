@@ -14,7 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      counters: {
+        Row: {
+          color: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          position: number
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          position?: number
+          user_id?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          position?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tally_days: {
+        Row: {
+          counts: Json
+          day: string
+          updated_at: string
+          user_id: string
+          visitors: Json
+        }
+        Insert: {
+          counts?: Json
+          day: string
+          updated_at?: string
+          user_id?: string
+          visitors?: Json
+        }
+        Update: {
+          counts?: Json
+          day?: string
+          updated_at?: string
+          user_id?: string
+          visitors?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
