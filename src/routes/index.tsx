@@ -173,7 +173,7 @@ function Tally({ userId, email }: { userId: string; email: string }) {
   const addCounter = async () => {
     const { data } = await supabase
       .from("counters")
-      .insert({ user_id: userId, name: "New counter", description: "", color: COLORS[counters.length % COLORS.length], position: counters.length })
+      .insert({ user_id: userId, name: "New counter", description: "", color: COLORS[counters.length % COLORS.length] ?? "c1", position: counters.length })
       .select("*").single();
     if (data) setCounters((cs) => [...cs, data]);
   };
