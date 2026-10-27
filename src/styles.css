@@ -3,7 +3,7 @@
 @import "tw-animate-css";
 @source inline("bg-c1 bg-c2 bg-c3 bg-c4 bg-c5 bg-c6");
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
   --font-sans: "IBM Plex Sans", system-ui, sans-serif;
@@ -68,8 +68,9 @@
   --c6: oklch(0.55 0.14 320);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] {
+    color-scheme: dark;
     --background: oklch(0.17 0.008 250);
     --foreground: oklch(0.94 0.005 250);
     --card: oklch(0.21 0.01 250);
@@ -94,7 +95,6 @@
     --c4: oklch(0.7 0.13 245);
     --c5: oklch(0.8 0.14 85);
     --c6: oklch(0.7 0.14 320);
-  }
 }
 
 @layer base {

@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import { COLORS, DEFAULT_COUNTERS, computeTotals, todayKey, type Counter } from "@/lib/tally";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import type { Json } from "@/integrations/supabase/types";
+import { COLORS, computeTotals, todayKey, normalizeCounts, createReport, reportText, type Counter, type Visitor, type DailyReport } from "@/lib/tally";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -33,7 +36,7 @@ function Index() {
   }, []);
   if (session === undefined) return <div className="min-h-screen" />;
   if (!session) return <AuthCard />;
-  return <Tally userId={session.user.id} email={session.user.email ?? ""} />;
+  return <Tally key={session.user.id} userId={session.user.id} email={session.user.email ?? ""} />;
 }
 
 function AuthCard() {
@@ -56,8 +59,9 @@ function AuthCard() {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-4">
       <h1 className="text-2xl font-semibold">Call Tally</h1>
+      <ThemeToggle />
       <p className="text-sm text-muted-foreground">Sign in to save your counters in the cloud.</p>
-      <button
+      <Button variant="ghost"
         className={`${btnOutline} h-12`}
         onClick={async () => {
           const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
@@ -65,21 +69,21 @@ function AuthCard() {
         }}
       >
         Continue with Google
-      </button>
+      </Button>
       <form onSubmit={submit} className="flex flex-col gap-2">
         <input className={input} type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input className={input} type="password" required minLength={6} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button className={`${btnPrimary} h-12`} type="submit">{mode === "in" ? "Sign in" : "Create account"}</button>
+        <Button variant="ghost" className={`${btnPrimary} h-12`} type="submit">{mode === "in" ? "Sign in" : "Create account"}</Button>
       </form>
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
-      <button className="text-sm underline" onClick={() => setMode(mode === "in" ? "up" : "in")}>
+      <Button variant="ghost" className="text-sm underline" onClick={() => setMode(mode === "in" ? "up" : "in")}>
         {mode === "in" ? "No account? Create one" : "Have an account? Sign in"}
-      </button>
+      </Button>
     </main>
   );
 }
 
-type Visitor = { name: string; at: string };
+type SavedReport = { day: string; report: DailyReport; savedAt: string };
 
 function Tally({ userId, email }: { userId: string; email: string }) {
   const day = useMemo(() => todayKey(), []);
@@ -93,26 +97,36 @@ function Tally({ userId, email }: { userId: string; email: string }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [saveState, setSaveState] = useState("Saved");
   const skipSave = useRef(true);
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const [history, setHistory] = useState<SavedReport[]>([]);
+  const [view, setView] = useState<"today" | "reports">("today");
+  const [selectedReport, setSelectedReport] = useState<string>("");
+  const [reportSaving, setReportSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      let { data: cs } = await supabase.from("counters").select("*").order("position");
-      if (!cs || cs.length === 0) {
-        const { data } = await supabase
-          .from("counters")
-          .insert(DEFAULT_COUNTERS.map((c, i) => ({ ...c, position: i, user_id: userId })))
-          .select("*")
-          .order("position");
-        cs = data ?? [];
+      try {
+        const { error: initError } = await supabase.rpc("initialize_counters");
+        if (initError) throw initError;
+        const [{ data: cs, error: countersError }, { data: d, error: dayError }, { data: reports, error: reportError }] = await Promise.all([
+          supabase.from("counters").select("*").eq("user_id", userId).order("position").order("created_at"),
+          supabase.from("tally_days").select("*").eq("user_id", userId).eq("day", day).maybeSingle(),
+          supabase.from("tally_days").select("day, report, report_saved_at").eq("user_id", userId).not("report", "is", null).order("day", { ascending: false }),
+        ]);
+        if (countersError || dayError || reportError) throw countersError ?? dayError ?? reportError;
+        if (cancelled) return;
+        setCounters((cs ?? []).filter((c) => !c.archived));
+        setCounts(normalizeCounts(cs ?? [], (d?.counts as Record<string, number>) ?? {}));
+        setVisitors((d?.visitors as Visitor[]) ?? []);
+        setHistory((reports ?? []).map((r) => ({ day: r.day, report: r.report as unknown as DailyReport, savedAt: r.report_saved_at ?? "" })));
+        setLoaded(true);
+      } catch (error) {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : "Could not load your counters. Please refresh.");
       }
-      setCounters(cs);
-      const { data: d } = await supabase.from("tally_days").select("*").eq("day", day).maybeSingle();
-      if (d) {
-        setCounts((d.counts as Record<string, number>) ?? {});
-        setVisitors((d.visitors as Visitor[]) ?? []);
-      }
-      setLoaded(true);
     })();
+    return () => { cancelled = true; };
   }, [userId, day]);
 
   // auto-save today's counts
@@ -121,10 +135,11 @@ function Tally({ userId, email }: { userId: string; email: string }) {
     if (skipSave.current) { skipSave.current = false; return; }
     setSaveState("Saving…");
     const t = setTimeout(async () => {
-      const { error } = await supabase
-        .from("tally_days")
-        .upsert({ user_id: userId, day, counts, visitors, updated_at: new Date().toISOString() });
-      setSaveState(error ? "Not saved — check connection" : "Saved");
+      saveQueue.current = saveQueue.current.then(async () => {
+        const { error } = await supabase.from("tally_days")
+          .upsert({ user_id: userId, day, counts, visitors, updated_at: new Date().toISOString() });
+        setSaveState(error ? "Not saved — check connection" : "Saved");
+      });
     }, 500);
     return () => clearTimeout(t);
   }, [counts, visitors, loaded, userId, day]);
@@ -148,17 +163,24 @@ function Tally({ userId, email }: { userId: string; email: string }) {
     setName("");
   };
 
-  const copyReport = async () => {
-    const lines = [
-      `Call report — ${day}`,
-      ...counters.map((c) => `${c.name}: ${counts[c.id] ?? 0}`),
-      `Calls dialed: ${totals.dialed}`,
-      "",
-      "Interested visitors:",
-      ...(visitors.length ? visitors.map((v, i) => `${i + 1}. ${v.name} (${v.at})`) : ["None"]),
-    ];
-    await navigator.clipboard.writeText(lines.join("\n"));
-    flash("Report copied.");
+  const saveReport = async () => {
+    const report = createReport(day, counters, counts, visitors);
+    const savedAt = new Date().toISOString();
+    setReportSaving(true);
+    const job = saveQueue.current.then(async () => {
+      const { error } = await supabase.from("tally_days").upsert({ user_id: userId, day, counts, visitors, updated_at: savedAt, report: report as unknown as Json, report_saved_at: savedAt });
+      if (error) { flash("Report could not be saved. Please try again."); return; }
+      setHistory((rows) => [{ day, report, savedAt }, ...rows.filter((r) => r.day !== day)].sort((a, b) => b.day.localeCompare(a.day)));
+      setSaveState("Saved");
+      flash("Daily report saved.");
+    });
+    saveQueue.current = job;
+    try { await job; } finally { setReportSaving(false); }
+  };
+
+  const copyReport = async (report = createReport(day, counters, counts, visitors)) => {
+    try { await navigator.clipboard.writeText(reportText(report)); flash("Report copied."); }
+    catch { flash("Could not copy report. Please try again."); }
   };
 
   const reset = () => {
@@ -168,7 +190,8 @@ function Tally({ userId, email }: { userId: string; email: string }) {
 
   const updateCounter = async (id: string, patch: Partial<Counter>) => {
     setCounters((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    await supabase.from("counters").update(patch).eq("id", id);
+    const { error } = await supabase.from("counters").update(patch).eq("id", id);
+    if (error) flash("Counter changes could not be saved.");
   };
   const addCounter = async () => {
     const { data } = await supabase
@@ -184,22 +207,36 @@ function Tally({ userId, email }: { userId: string; email: string }) {
 
   const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
+  const currentReport = history.find((r) => r.day === selectedReport) ?? history[0];
+  const groups = [
+    { label: "Call outcomes", items: counters.filter((c) => c.role === "received" || c.role === "not_received") },
+    { label: "Common subcategories", items: counters.filter((c) => c.role !== "received" && c.role !== "not_received") },
+  ];
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
-      <header className="flex items-start justify-between gap-3">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Call Tally</h1>
           <p className="text-sm text-muted-foreground">{dateLabel}</p>
           <p className="text-xs text-muted-foreground">{saveState} to your account · {email}</p>
         </div>
-        <div className="flex gap-2">
-          <button className={`${btnOutline} h-10 px-3 text-sm`} onClick={() => setEditing((e) => !e)}>
+        <div className="flex flex-wrap items-center gap-2">
+          <ThemeToggle />
+          <Button variant="ghost" className={`${btnOutline} h-10 px-3 text-sm`} onClick={() => setEditing((e) => !e)}>
             {editing ? "Done" : "Edit counters"}
-          </button>
-          <button className={`${btnOutline} h-10 px-3 text-sm`} onClick={() => supabase.auth.signOut()}>Sign out</button>
+          </Button>
+          <Button variant="ghost" className={`${btnOutline} h-10 px-3 text-sm`} onClick={() => supabase.auth.signOut()}>Sign out</Button>
         </div>
       </header>
 
+      <nav className="mt-5 flex gap-2 border-b pb-3" aria-label="Tally views">
+        <Button variant={view === "today" ? "secondary" : "ghost"} onClick={() => setView("today")}>Today</Button>
+        <Button variant={view === "reports" ? "secondary" : "ghost"} onClick={() => setView("reports")}>Daily reports</Button>
+      </nav>
+      {loadError && <p role="alert" className="mt-4 text-destructive">{loadError}</p>}
+      {!loaded && !loadError && <p role="status" className="mt-4 text-muted-foreground">Loading…</p>}
+      {loaded && view === "today" && <>
       <section className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[["Calls dialed", String(totals.dialed)], ["Pick-up rate", `${totals.pickup}%`], ["Admitted %", `${totals.admitted}%`], ["Interested %", `${totals.interested}%`]].map(([l, v]) => (
           <div key={l} className="rounded-lg border bg-card p-3">
@@ -209,8 +246,10 @@ function Tally({ userId, email }: { userId: string; email: string }) {
         ))}
       </section>
 
-      <section className="mt-4 grid gap-3 sm:grid-cols-2">
-        {counters.map((c) => {
+      {groups.map((group) => <section key={group.label} className="mt-5">
+        <h2 className="mb-3 font-semibold">{group.label}</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+        {group.items.map((c) => {
           const n = counts[c.id] ?? 0;
           return (
             <div key={c.id} className="rounded-lg border bg-card p-4">
@@ -221,11 +260,11 @@ function Tally({ userId, email }: { userId: string; email: string }) {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex gap-1.5">
                       {COLORS.map((k) => (
-                        <button key={k} aria-label={`Color ${k}`} onClick={() => updateCounter(c.id, { color: k })}
-                          className={`h-7 w-7 rounded-full bg-${k} ${c.color === k ? "ring-2 ring-foreground ring-offset-2 ring-offset-card" : ""}`} />
+                        <Button variant="ghost" size="icon" key={k} aria-label={`Color ${k}`} onClick={() => updateCounter(c.id, { color: k })}
+                          className={`h-7 w-7 rounded-full p-0 bg-${k} hover:bg-${k} ${c.color === k ? "ring-2 ring-foreground ring-offset-2 ring-offset-card" : ""}`} />
                       ))}
                     </div>
-                    <button className="text-sm text-destructive underline" onClick={() => deleteCounter(c.id)}>Delete</button>
+                    <Button variant="ghost" className="text-sm text-destructive underline" onClick={() => deleteCounter(c.id)}>Delete</Button>
                   </div>
                 </div>
               ) : (
@@ -236,25 +275,26 @@ function Tally({ userId, email }: { userId: string; email: string }) {
                   </div>
                   {c.description && <p className="mt-0.5 text-sm text-muted-foreground">{c.description}</p>}
                   <div className="mt-3 flex items-center gap-3">
-                    <button className={`${btnOutline} h-[60px] w-[60px] text-2xl`} disabled={n === 0} aria-label={`Decrease ${c.name}`} onClick={() => bump(c.id, -1)}>−</button>
+                    <Button variant="ghost" className={`${btnOutline} h-[60px] w-[60px] text-2xl`} disabled={n === 0} aria-label={`Decrease ${c.name}`} onClick={() => bump(c.id, -1)}>−</Button>
                     <div className="tabular flex-1 text-center text-4xl font-semibold">{n}</div>
-                    <button className={`${btnPrimary} h-[60px] w-[60px] text-2xl`} aria-label={`Increase ${c.name}`} onClick={() => bump(c.id, 1)}>+</button>
+                    <Button variant="ghost" className={`${btnPrimary} h-[60px] w-[60px] text-2xl`} aria-label={`Increase ${c.name}`} onClick={() => bump(c.id, 1)}>+</Button>
                   </div>
                 </>
               )}
             </div>
           );
         })}
-        {editing && (
-          <button className={`${btnOutline} min-h-24 border-dashed`} onClick={addCounter}>+ Add counter</button>
+        {editing && group.label === "Common subcategories" && (
+          <Button variant="ghost" className={`${btnOutline} min-h-24 border-dashed`} onClick={addCounter}>+ Add counter</Button>
         )}
-      </section>
+        </div>
+      </section>)}
 
-      <section className="mt-6 rounded-lg border bg-card p-4">
+      <section className="mt-6 border-t pt-4">
         <h2 className="font-medium">Interested visitors</h2>
         <div className="mt-2 flex gap-2">
           <input className={input} placeholder="Write visitor name" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addVisitor()} />
-          <button className={`${btnPrimary} px-4`} onClick={addVisitor}>Add</button>
+          <Button variant="ghost" className={`${btnPrimary} px-4`} onClick={addVisitor}>Add</Button>
         </div>
         {visitors.length === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">No names yet. Add a visitor who showed interest.</p>
@@ -263,7 +303,7 @@ function Tally({ userId, email }: { userId: string; email: string }) {
             {visitors.map((v, i) => (
               <li key={i} className="flex items-center justify-between py-2">
                 <span>{v.name} <span className="tabular text-xs text-muted-foreground">{v.at}</span></span>
-                <button className="text-sm underline" onClick={() => setVisitors((vs) => vs.filter((_, j) => j !== i))}>Remove</button>
+                <Button variant="ghost" className="text-sm underline" onClick={() => setVisitors((vs) => vs.filter((_, j) => j !== i))}>Remove</Button>
               </li>
             ))}
           </ul>
@@ -271,12 +311,28 @@ function Tally({ userId, email }: { userId: string; email: string }) {
       </section>
 
       <section className="mt-4 flex flex-wrap items-center gap-2">
-        <button className={`${btnPrimary} h-12 px-5`} onClick={copyReport}>Copy report</button>
-        <button className={`${btnOutline} h-12 px-5 ${confirmReset ? "border-destructive text-destructive" : ""}`} onClick={reset}>
+        <Button className="h-12 px-5" disabled={reportSaving} onClick={saveReport}>{reportSaving ? "Saving report…" : "Save daily report"}</Button>
+        <Button variant="ghost" className={`${btnOutline} h-12 px-5`} onClick={() => copyReport()}>Copy report</Button>
+        <Button variant="ghost" className={`${btnOutline} h-12 px-5 ${confirmReset ? "border-destructive text-destructive" : ""}`} onClick={reset}>
           {confirmReset ? "Tap again to clear all" : "Reset today"}
-        </button>
-        {note && <span className="text-sm text-muted-foreground">{note}</span>}
+        </Button>
       </section>
+      </>}
+      {loaded && view === "reports" && <section className="mt-5">
+        <h2 className="text-lg font-semibold">Daily reports</h2>
+        {history.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No saved reports yet.</p> : <>
+          <label className="mt-4 block text-sm font-medium" htmlFor="report-day">Report date</label>
+          <select id="report-day" className={`${input} mt-2`} value={currentReport?.day ?? ""} onChange={(e) => setSelectedReport(e.target.value)}>
+            {history.map((r) => <option key={r.day} value={r.day}>{r.day}</option>)}
+          </select>
+          {currentReport && <>
+            <p className="mt-3 text-xs text-muted-foreground">Saved {new Date(currentReport.savedAt).toLocaleString()}</p>
+            <pre className="mt-4 whitespace-pre-wrap break-words font-mono text-sm leading-7">{reportText(currentReport.report)}</pre>
+            <Button variant="outline" className="mt-4" onClick={() => copyReport(currentReport.report)}>Copy report</Button>
+          </>}
+        </>}
+      </section>}
+      {note && <p role="status" className="mt-3 text-sm text-muted-foreground">{note}</p>}
     </main>
   );
 }
