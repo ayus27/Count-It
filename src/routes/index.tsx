@@ -44,10 +44,10 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Count-It — IIC Footset Calling & Daily Report" },
-      { name: "description", content: "Fast counter and Google Form aligned daily reporting tool for the IIC Footset Team." },
-      { property: "og:title", content: "Count-It — IIC Footset Calling" },
-      { property: "og:description", content: "Count calls, prospective student visits, and generate 1-to-1 Google Form reports." },
+      { title: "Count It" },
+      { name: "description", content: "Tally Efficiently, Count Smarter and Forget your pen and paper" },
+      { property: "og:title", content: "Count It" },
+      { property: "og:description", content: "Count calls, prospect student visits, and generate 1-to-1 report." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -249,9 +249,8 @@ function HoldToDeleteButton({
     <div className="relative flex items-center">
       <button
         type="button"
-        className={`relative inline-flex items-center justify-center h-8 w-8 rounded-lg overflow-hidden transition-all select-none cursor-pointer ${
-          holding ? "scale-105" : "hover:bg-black/10 dark:hover:bg-white/10"
-        }`}
+        className={`relative inline-flex items-center justify-center h-8 w-8 rounded-lg overflow-hidden transition-all select-none cursor-pointer ${holding ? "scale-105" : "hover:bg-black/10 dark:hover:bg-white/10"
+          }`}
         title={`Hold 2s to delete ${counterName}`}
         aria-label={`Hold 2 seconds to delete ${counterName} (count: ${count})`}
         onMouseDown={startHold}
@@ -1054,9 +1053,8 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
                   <div
                     key={c.id}
                     onDragOver={(e) => editing && handleDragOver(e, subIdx)}
-                    className={`counter-card tally-grid__item--span2 ${schemeClass} ${editing ? "counter-card--editing" : ""} ${
-                      isDragging ? "opacity-40" : ""
-                    } ${isPickedUp ? "ring-2 ring-foreground ring-offset-2" : ""}`}
+                    className={`counter-card tally-grid__item--span2 ${schemeClass} ${editing ? "counter-card--editing" : ""} ${isDragging ? "opacity-40" : ""
+                      } ${isPickedUp ? "ring-2 ring-foreground ring-offset-2" : ""}`}
                   >
                     <div className="counter-card__inner">
                       {editing ? (
@@ -1414,9 +1412,8 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
 
               <button
                 type="button"
-                className={`btn btn--ghost text-xs ${
-                  confirmReset ? "text-destructive bg-destructive/10" : "text-muted-foreground"
-                }`}
+                className={`btn btn--ghost text-xs ${confirmReset ? "text-destructive bg-destructive/10" : "text-muted-foreground"
+                  }`}
                 onClick={reset}
               >
                 <RotateCcw className="h-3.5 w-3.5" strokeWidth={2} />
