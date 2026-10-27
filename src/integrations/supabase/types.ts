@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       counters: {
         Row: {
+          archived: boolean
           color: string
           created_at: string
           description: string
@@ -26,6 +27,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived?: boolean
           color?: string
           created_at?: string
           description?: string
@@ -36,6 +38,7 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          archived?: boolean
           color?: string
           created_at?: string
           description?: string
@@ -51,6 +54,8 @@ export type Database = {
         Row: {
           counts: Json
           day: string
+          report: Json | null
+          report_saved_at: string | null
           updated_at: string
           user_id: string
           visitors: Json
@@ -58,6 +63,8 @@ export type Database = {
         Insert: {
           counts?: Json
           day: string
+          report?: Json | null
+          report_saved_at?: string | null
           updated_at?: string
           user_id?: string
           visitors?: Json
@@ -65,6 +72,8 @@ export type Database = {
         Update: {
           counts?: Json
           day?: string
+          report?: Json | null
+          report_saved_at?: string | null
           updated_at?: string
           user_id?: string
           visitors?: Json
@@ -76,7 +85,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      initialize_counters: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
