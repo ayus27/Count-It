@@ -194,11 +194,15 @@ function Tally({ userId, email }: { userId: string; email: string }) {
     if (error) flash("Counter changes could not be saved.");
   };
   const addCounter = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("counters")
-      .insert({ user_id: userId, name: "New counter", description: "", color: COLORS[counters.length % COLORS.length] ?? "c1", position: counters.length })
+      .insert({ user_id: userId, name: "New subcategory", description: "", role: null, color: COLORS[counters.length % COLORS.length] ?? "c1", position: counters.length })
       .select("*").single();
-    if (data) setCounters((cs) => [...cs, data]);
+    if (error) { flash("Subcategory could not be saved. Please try again."); return; }
+    if (data) {
+      setCounters((cs) => [...cs, data]);
+      setEditing(true);
+    }
   };
   const deleteCounter = async (id: string) => {
     setCounters((cs) => cs.filter((c) => c.id !== id));
@@ -284,8 +288,8 @@ function Tally({ userId, email }: { userId: string; email: string }) {
             </div>
           );
         })}
-        {editing && group.label === "Common subcategories" && (
-          <Button variant="ghost" className={`${btnOutline} min-h-24 border-dashed`} onClick={addCounter}>+ Add counter</Button>
+        {group.label === "Common subcategories" && (
+          <Button variant="outline" className="min-h-24 border-dashed" onClick={addCounter}>+ Add subcategory</Button>
         )}
         </div>
       </section>)}
