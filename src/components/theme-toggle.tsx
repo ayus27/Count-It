@@ -8,11 +8,11 @@ export function ThemeToggle() {
     const saved = localStorage.getItem("call-tally-theme");
     const next = saved === "dark" || saved === "light" ? saved : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     setTheme(next);
-    document.documentElement.dataset.theme = next;
+    document.documentElement.dataset['theme'] = next;
   }, []);
   const change = (next: "light" | "dark") => {
     setTheme(next);
-    document.documentElement.dataset.theme = next;
+    document.documentElement.dataset['theme'] = next;
     localStorage.setItem("call-tally-theme", next);
   };
   return <div className="flex gap-1" aria-label="Appearance">
