@@ -7,6 +7,7 @@ export type Counter = {
   color: string;
   position: number;
   role: string | null;
+  archived?: boolean;
 };
 
 export const DEFAULT_COUNTERS: { name: string; description: string; color: string; role: Role }[] = [
@@ -28,13 +29,40 @@ export function computeTotals(counters: Counter[], counts: Record<string, number
   const byRole = (r: Role) =>
     counters.filter((c) => c.role === r).reduce((s, c) => s + (counts[c.id] ?? 0), 0);
   const received = byRole("received");
-  const dialed = received + byRole("not_received") + byRole("wrong");
+  const dialed = received + byRole("not_received");
   return {
     dialed,
     pickup: pct(received, dialed),
     admitted: pct(byRole("admitted"), received),
     interested: pct(byRole("interested"), received),
   };
+}
+
+export function normalizeCounts(counters: Counter[], counts: Record<string, number>) {
+  const normalized = { ...counts };
+  for (const counter of counters.filter((c) => c.archived && c.role)) {
+    const active = counters.find((c) => !c.archived && c.role === counter.role);
+    if (!active) continue;
+    normalized[active.id] = (normalized[active.id] ?? 0) + (normalized[counter.id] ?? 0);
+    delete normalized[counter.id];
+  }
+  return normalized;
+}
+
+export type Visitor = { name: string; at: string };
+export type DailyReport = {
+  day: string;
+  counters: { name: string; role: string | null; count: number }[];
+  visitors: Visitor[];
+  totals: ReturnType<typeof computeTotals>;
+};
+
+export function createReport(day: string, counters: Counter[], counts: Record<string, number>, visitors: Visitor[]): DailyReport {
+  return { day, counters: counters.map((c) => ({ name: c.name, role: c.role, count: counts[c.id] ?? 0 })), visitors: visitors.map((v) => ({ ...v })), totals: computeTotals(counters, counts) };
+}
+
+export function reportText(report: DailyReport) {
+  return [`Call report — ${report.day}`, ...report.counters.map((c) => `${c.name}: ${c.count}`), `Calls dialed: ${report.totals.dialed}`, `Pick-up rate: ${report.totals.pickup}%`, `Admitted: ${report.totals.admitted}%`, `Interested: ${report.totals.interested}%`, "", "Interested visitors:", ...(report.visitors.length ? report.visitors.map((v, i) => `${i + 1}. ${v.name} (${v.at})`) : ["None"])].join("\n");
 }
 
 export function todayKey(d = new Date()) {
