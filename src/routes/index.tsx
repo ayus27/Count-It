@@ -151,6 +151,7 @@ function Tally({ userId, email }: { userId: string; email: string }) {
   }, [day]);
 
   const totals = computeTotals(counters, counts);
+  const dailyRemarks = createReport(day, counters, counts, visitors).remarks;
   const bump = (id: string, d: number) => setCounts((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + d) }));
 
   const flash = (m: string) => { setNote(m); setTimeout(() => setNote(""), 2500); };
@@ -312,6 +313,11 @@ function Tally({ userId, email }: { userId: string; email: string }) {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="mt-6 border-t pt-4" aria-labelledby="daily-remarks-heading">
+        <h2 id="daily-remarks-heading" className="font-semibold">Daily remarks</h2>
+        <p className="mt-2 text-sm leading-7">{dailyRemarks}</p>
       </section>
 
       <section className="mt-4 flex flex-wrap items-center gap-2">
