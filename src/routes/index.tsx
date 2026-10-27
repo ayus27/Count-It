@@ -311,7 +311,7 @@ function Tally({ userId, email }: { userId: string; email: string }) {
       </section>
 
       <section className="mt-4 flex flex-wrap items-center gap-2">
-        <Button variant="ghost" className="h-12 px-5" disabled={reportSaving} onClick={saveReport}>{reportSaving ? "Saving report…" : "Save daily report"}</Button>
+        <Button className="h-12 px-5" disabled={reportSaving} onClick={saveReport}>{reportSaving ? "Saving report…" : "Save daily report"}</Button>
         <Button variant="ghost" className={`${btnOutline} h-12 px-5`} onClick={() => copyReport()}>Copy report</Button>
         <Button variant="ghost" className={`${btnOutline} h-12 px-5 ${confirmReset ? "border-destructive text-destructive" : ""}`} onClick={reset}>
           {confirmReset ? "Tap again to clear all" : "Reset today"}
