@@ -108,11 +108,11 @@ function AuthCard() {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-5 px-4 py-8">
       <div className="text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-[12px] bg-primary text-primary-foreground font-bold text-xl">
+        {/* <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-[12px] bg-primary text-primary-foreground font-bold text-xl">
           C
-        </div>
+        </div> */}
         <h1 className="text-2xl font-bold tracking-tight">Count-It</h1>
-        <p className="mt-1 text-xs text-muted-foreground">IIC Footset calling & daily report portal</p>
+        <p className="mt-1 text-xs text-muted-foreground">Make your day lil easy! Haha </p>
       </div>
 
       <div className="section-panel">
