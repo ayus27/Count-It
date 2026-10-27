@@ -15,8 +15,28 @@ export function ThemeToggle() {
     document.documentElement.dataset['theme'] = next;
     localStorage.setItem("call-tally-theme", next);
   };
-  return <div className="flex gap-1" aria-label="Appearance">
-    <Button variant={theme === "light" ? "secondary" : "ghost"} size="icon" aria-label="Light mode" title="Light mode" aria-pressed={theme === "light"} onClick={() => change("light")}><Sun /></Button>
-    <Button variant={theme === "dark" ? "secondary" : "ghost"} size="icon" aria-label="Dark mode" title="Dark mode" aria-pressed={theme === "dark"} onClick={() => change("dark")}><Moon /></Button>
-  </div>;
+  return (
+    <div className="segmented-toggle" role="group" aria-label="Appearance">
+      <button
+        type="button"
+        className={`segmented-toggle__btn ${theme === "light" ? "segmented-toggle__btn--active" : ""}`}
+        aria-label="Light mode"
+        title="Light mode"
+        aria-pressed={theme === "light"}
+        onClick={() => change("light")}
+      >
+        <Sun className="h-4 w-4" strokeWidth={2} />
+      </button>
+      <button
+        type="button"
+        className={`segmented-toggle__btn ${theme === "dark" ? "segmented-toggle__btn--active" : ""}`}
+        aria-label="Dark mode"
+        title="Dark mode"
+        aria-pressed={theme === "dark"}
+        onClick={() => change("dark")}
+      >
+        <Moon className="h-4 w-4" strokeWidth={2} />
+      </button>
+    </div>
+  );
 }

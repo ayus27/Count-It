@@ -26,7 +26,7 @@ describe("totals", () => {
     const cs = [{ ...mk("i", "interested"), description: "Will visit college in a few days" }];
     const report = createReport("2026-10-27", cs, { i: 10 }, []);
     const originalRemarks = report.remarks;
-    cs[0].description = "Changed detail";
+    cs[0]!.description = "Changed detail";
     expect(report.counters[0]?.description).toBe("Will visit college in a few days");
     expect(report.remarks).toBe(originalRemarks);
     expect(report.remarks).toBeDefined();
