@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { Json } from "@/integrations/supabase/types";
@@ -64,8 +64,13 @@ function AuthCard() {
       <Button variant="ghost"
         className={`${btnOutline} h-12`}
         onClick={async () => {
-          const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-          if (r.error) setMsg(String(r.error.message ?? r.error));
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo: window.location.origin,
+            },
+          });
+          if (error) setMsg(error.message);
         }}
       >
         Continue with Google
