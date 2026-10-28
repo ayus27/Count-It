@@ -70,3 +70,19 @@ describe("totals", () => {
     expect([t.pickup, t.admitted, t.interested]).toEqual([0, 0, 0]);
   });
 });
+
+import { buildGoogleFormUrl as _buildUrl } from "@/lib/tally";
+describe("google form prefill", () => {
+  it("maps dialed and connected totals to the form entries", () => {
+    const cs = [
+      { id: "a", name: "Received", description: "", color: "blue", position: 0, role: "received" },
+      { id: "b", name: "Not received", description: "", color: "red", position: 1, role: "not_received" },
+      { id: "c", name: "Not interested", description: "", color: "red", position: 2, role: "not_interested" },
+    ];
+    const url = new URL(_buildUrl("Aayush", cs, { a: 4, b: 6, c: 2 }, []));
+    expect(url.searchParams.get("entry.832632953")).toBe("10");
+    expect(url.searchParams.get("entry.200805351")).toBe("4");
+    expect(url.searchParams.get("entry.2095609115")).toBe("2");
+    expect(url.searchParams.get("entry.1730418201")).toBe("Aayush");
+  });
+});
