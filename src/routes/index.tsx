@@ -38,6 +38,7 @@ import {
   TrendingUp,
   PhoneForwarded,
   Copy,
+  ExternalLink,
   Save,
   RotateCcw,
 } from "lucide-react";
