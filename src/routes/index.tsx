@@ -14,6 +14,7 @@ import {
   getSmartGreeting,
   generateGoogleFormReport,
   buildGoogleFormUrl,
+  generateAverageRemarks,
   resolveCardColor,
   type Counter,
   type Visitor,
@@ -566,8 +567,6 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
     };
 
     const savedAt = new Date().toISOString();
-    const formUrl = buildGoogleFormUrl(fullName, counters, counts, visitors, extraDetails);
-    const formTab = window.open("about:blank", "_blank");
     setReportSaving(true);
     const job = saveQueue.current.then(async () => {
       const { error } = await supabase.from("tally_days").upsert({
@@ -581,7 +580,6 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
       });
 
       if (error) {
-        formTab?.close();
         flash("Report could not be saved. Please try again.");
         return;
       }
@@ -589,9 +587,7 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
       setHistory((rows) => [{ day, report, savedAt }, ...rows.filter((r) => r.day !== day)].sort((a, b) => b.day.localeCompare(a.day)));
       const timeStr = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       setSaveStatusText(`Saved ${timeStr}`);
-      if (formTab) formTab.location.href = formUrl;
-      else window.open(formUrl, "_blank", "noopener");
-      flash("Report saved. Google Form opened with everything filled in.");
+      flash("Report saved.");
     });
 
     saveQueue.current = job;
@@ -1367,7 +1363,20 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
               </div>
 
               <div className="md:col-span-3">
-                <label className="tally-label">Today's highlight (Call Center) *</label>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="tally-label">Today's highlight / average remarks *</label>
+                  <button
+                    type="button"
+                    className="btn btn--outline"
+                    onClick={() => {
+                      const entries = counters.map((c) => ({ name: c.name, role: c.role, count: counts[c.id] ?? 0 }));
+                      const seed = `${userId}-${day}-${Date.now()}`;
+                      setExtraDetails((prev) => ({ ...prev, todayHighlight: generateAverageRemarks(entries, seed) }));
+                    }}
+                  >
+                    Generate
+                  </button>
+                </div>
                 <textarea
                   rows={2}
                   className="tally-textarea"
