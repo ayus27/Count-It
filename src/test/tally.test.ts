@@ -86,3 +86,17 @@ describe("google form prefill", () => {
     expect(url.searchParams.get("entry.1730418201")).toBe("Aayush");
   });
 });
+
+import { generateAverageRemarks } from "@/lib/tally";
+describe("average remarks", () => {
+  const e = [
+    { name: "Received", role: "received", count: 44 },
+    { name: "Not received", role: "not_received", count: 56 },
+    { name: "Interested but needs follow-up", role: "interested_followup", count: 2 },
+  ];
+  it("includes the 44% pickup rate and 2 follow-ups", () => {
+    const r = generateAverageRemarks(e, "seed");
+    expect(r).toContain("44%");
+    expect(r).toMatch(/\b2\b/);
+  });
+});

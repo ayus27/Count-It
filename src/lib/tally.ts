@@ -129,6 +129,65 @@ export function generateRemarks(entries: { name: string; description?: string; r
   return parts.join(" ") || "Daily tallies recorded.";
 }
 
+function seededRandom(seed: string) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  return () => {
+    h = Math.imul(h ^ (h >>> 15), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return ((h ^= h >>> 16) >>> 0) / 4294967296;
+  };
+}
+
+/** Natural-language summary with varied phrasing; the seed (user + day + click) changes wording. */
+export function generateAverageRemarks(entries: { name: string; role?: string | null; count: number }[], seed: string) {
+  const rnd = seededRandom(seed);
+  const pick = <T,>(xs: T[]) => xs[Math.floor(rnd() * xs.length)]!;
+  const byRole = (r: string) => entries.filter((c) => c.role === r).reduce((s, c) => s + c.count, 0);
+  const received = byRole("received");
+  const dialed = received + byRole("not_received");
+  if (dialed === 0 && entries.every((e) => e.count === 0)) return "No calls logged yet today.";
+
+  const label = (e: { name: string }) => e.name.replace(/\s*\(.*?\)\s*/g, " ").trim().toLowerCase();
+  const subs = entries
+    .filter((c) => c.role !== "received" && c.role !== "not_received" && c.count > 0)
+    .sort((a, b) => b.count - a.count);
+  const followup = byRole("interested_followup");
+  const parts: string[] = [];
+
+  if (dialed > 0) {
+    const rate = pct(received, dialed);
+    parts.push(pick([
+      `Today's pickup rate was ${rate}%.`,
+      `Out of ${dialed} calls dialed, ${rate}% were picked up.`,
+      `Pickup rate for the day stood at ${rate}% (${received} of ${dialed} calls).`,
+      `${received} of ${dialed} students answered today, a ${rate}% pickup rate.`,
+    ]));
+  }
+
+  const rest = subs.filter((s) => s.role !== "interested_followup");
+  const [top, ...others] = rest;
+  if (top) {
+    parts.push(pick([
+      `Most of the students were ${label(top)},`,
+      `The majority of responses were "${label(top)}",`,
+      `Most commonly, students said ${label(top)},`,
+    ]));
+    const few = others.slice(0, 2).map((o) => (o.count <= 3 ? `${o.count} said ${label(o)}` : `a few said ${label(o)}`));
+    if (few.length) parts[parts.length - 1] += ` ${pick(["while", "whereas", "and"])} ${few.join(" and ")}.`;
+    else parts[parts.length - 1] = parts[parts.length - 1]!.replace(/,$/, ".");
+  }
+
+  if (followup > 0) {
+    parts.push(pick([
+      `${followup} student${followup > 1 ? "s require" : " requires"} follow-up tomorrow or in the coming days.`,
+      `${followup} lead${followup > 1 ? "s need" : " needs"} a follow-up call soon.`,
+      `Follow-ups are pending for ${followup} interested student${followup > 1 ? "s" : ""}.`,
+    ]));
+  }
+  return parts.join(" ");
+}
+
 export function normalizeCounts(counters: Counter[], counts: Record<string, number>) {
   const normalized = { ...counts };
   for (const counter of counters.filter((c) => c.archived && c.role)) {
