@@ -13,6 +13,7 @@ import {
   normalizeCounts,
   getSmartGreeting,
   generateGoogleFormReport,
+  buildGoogleFormUrl,
   resolveCardColor,
   type Counter,
   type Visitor,
@@ -37,6 +38,7 @@ import {
   TrendingUp,
   PhoneForwarded,
   Copy,
+  ExternalLink,
   Save,
   RotateCcw,
 } from "lucide-react";
@@ -564,6 +566,8 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
     };
 
     const savedAt = new Date().toISOString();
+    const formUrl = buildGoogleFormUrl(fullName, counters, counts, visitors, extraDetails);
+    const formTab = window.open("about:blank", "_blank");
     setReportSaving(true);
     const job = saveQueue.current.then(async () => {
       const { error } = await supabase.from("tally_days").upsert({
@@ -577,6 +581,7 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
       });
 
       if (error) {
+        formTab?.close();
         flash("Report could not be saved. Please try again.");
         return;
       }
@@ -584,7 +589,9 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
       setHistory((rows) => [{ day, report, savedAt }, ...rows.filter((r) => r.day !== day)].sort((a, b) => b.day.localeCompare(a.day)));
       const timeStr = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       setSaveStatusText(`Saved ${timeStr}`);
-      flash("Today's report saved successfully.");
+      if (formTab) formTab.location.href = formUrl;
+      else window.open(formUrl, "_blank", "noopener");
+      flash("Report saved. Google Form opened with everything filled in.");
     });
 
     saveQueue.current = job;
@@ -1489,6 +1496,22 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
                     >
                       <Copy className="h-3.5 w-3.5" strokeWidth={2} />
                       <span>Copy Google Form report</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--outline text-xs"
+                      onClick={() => {
+                        const r = currentReport.report;
+                        const cs: Counter[] = (r.counters ?? []).map((e, idx) => ({
+                          id: `snap_${idx}`, name: e.name, description: e.description ?? "", color: "gray", position: idx, role: e.role,
+                        }));
+                        const cn: Record<string, number> = {};
+                        (r.counters ?? []).forEach((e, idx) => { cn[`snap_${idx}`] = e.count; });
+                        window.open(buildGoogleFormUrl(fullName, cs, cn, r.visitors ?? [], r.additional), "_blank", "noopener");
+                      }}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
+                      <span>Open filled Google Form</span>
                     </button>
                   </div>
                   <pre className="mt-3 whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-foreground bg-card p-4 rounded-lg border border-border overflow-x-auto">

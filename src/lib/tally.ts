@@ -329,3 +329,65 @@ export function generateGoogleFormReport(
 
   return lines.join("\n");
 }
+
+export const GOOGLE_FORM_BASE =
+  "https://docs.google.com/forms/d/e/1FAIpQLSfwI6OwoYmS-Hr2aiEKqVX4jmHclYD-w9ACCMec0eO1G0-ZYQ/viewform";
+
+// Build a pre-filled Google Form link. Every question maps to its form entry id.
+export function buildGoogleFormUrl(
+  userName: string,
+  counters: Counter[],
+  counts: Record<string, number>,
+  visitors: Visitor[],
+  extra?: AdditionalFormDetails
+): string {
+  const byRole = (r: Role) =>
+    counters.filter((c) => c.role === r).reduce((s, c) => s + (counts[c.id] ?? 0), 0);
+  const totals = computeTotals(counters, counts);
+  const entries = counters.map((c) => ({ name: c.name, description: c.description, role: c.role, count: counts[c.id] ?? 0 }));
+  const n = (v: number) => String(v);
+  const interestedTomorrow = byRole("interested_visit");
+  const interestedFollowup = byRole("interested_followup");
+  const registeredEvent = byRole("registered_event");
+  const visits = visitors.length ? String(visitors.length) : "0";
+
+  const fields: Record<string, string> = {
+    "1730418201": userName,
+    "832632953": n(totals.dialed),
+    "200805351": n(totals.received),
+    "1128954890": n(byRole("callback")),
+    "1831190935": extra?.averageWorkingHours || "",
+    "90844432": extra?.systemCallbackRemarks || "",
+    "1472111117": extra?.leadTypeFollowedUp || "",
+    "414298434": n(interestedTomorrow),
+    "1494255321": n(registeredEvent),
+    "300589199": n(interestedFollowup),
+    "1009387427": n(byRole("discuss_parents")),
+    "237277338": n(byRole("already_joined")),
+    "827842377": n(byRole("turning_later")),
+    "626698672": n(byRole("scholarship_hesitation")),
+    "350764422": n(byRole("fees_hesitation")),
+    "1441020440": n(byRole("course_unavailable")),
+    "2095609115": n(byRole("not_interested")),
+    "782223962": n(byRole("wrong")),
+    "276740164": n(byRole("already_visited")),
+    "496643595": extra?.confirmedVisitsTomorrow || n(interestedTomorrow),
+    "1954288534": extra?.highIntentFollowupsTomorrow || n(interestedFollowup),
+    "698735490": extra?.totalRevisitCommitments || "0",
+    "1428293084": n(registeredEvent),
+    "1115169643": extra?.scheduledVisits || "0",
+    "1185209817": extra?.actualShowUps || visits,
+    "158577648": extra?.unscheduledVisits || "0",
+    "377102298": extra?.totalVisits || visits,
+    "1733014439": extra?.toursConducted || "0",
+    "1558839317": extra?.todayHighlight || generateRemarks(entries),
+    "629150067": extra?.remainingClusters || "None",
+    "1869393770": extra?.challengesFaced || "No",
+  };
+
+  const params = new URLSearchParams({ usp: "pp_url" });
+  for (const [id, value] of Object.entries(fields)) {
+    if (value) params.append(`entry.${id}`, value);
+  }
+  return `${GOOGLE_FORM_BASE}?${params.toString()}`;
+}
