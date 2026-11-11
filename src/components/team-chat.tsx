@@ -197,7 +197,7 @@ function ConvoButton(props: {
   onClick: () => void;
   avatar: ReactNode;
   title: string;
-  last?: Shown;
+  last: Shown | undefined;
   memberMap: Map<string, Member>;
   userId: string;
 }) {
