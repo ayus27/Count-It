@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_messages: {
+        Row: {
+          ciphertext: string
+          created_at: string
+          id: string
+          iv: string
+          recipient_id: string | null
+          sender_id: string
+          wrapped_keys: Json | null
+        }
+        Insert: {
+          ciphertext: string
+          created_at?: string
+          id?: string
+          iv: string
+          recipient_id?: string | null
+          sender_id?: string
+          wrapped_keys?: Json | null
+        }
+        Update: {
+          ciphertext?: string
+          created_at?: string
+          id?: string
+          iv?: string
+          recipient_id?: string | null
+          sender_id?: string
+          wrapped_keys?: Json | null
+        }
+        Relationships: []
+      }
       counters: {
         Row: {
           archived: boolean
@@ -80,12 +110,53 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_members: {
+        Row: {
+          full_name: string
+          joined_at: string
+          public_key: Json
+          user_id: string
+        }
+        Insert: {
+          full_name: string
+          joined_at?: string
+          public_key: Json
+          user_id: string
+        }
+        Update: {
+          full_name?: string
+          joined_at?: string
+          public_key?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workspace_settings: {
+        Row: {
+          id: number
+          join_code: string
+        }
+        Insert: {
+          id?: number
+          join_code: string
+        }
+        Update: {
+          id?: number
+          join_code?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       initialize_counters: { Args: never; Returns: undefined }
+      is_workspace_member: { Args: { _uid: string }; Returns: boolean }
+      join_workspace: {
+        Args: { _code: string; _full_name: string; _public_key: Json }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

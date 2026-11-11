@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { TeamChat } from "@/components/team-chat";
 import type { Json } from "@/integrations/supabase/types";
 import {
   CARD_COLORS,
@@ -42,6 +43,7 @@ import {
   ExternalLink,
   Save,
   RotateCcw,
+  MessageCircle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -363,7 +365,7 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
   const skipSave = useRef(true);
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const [history, setHistory] = useState<SavedReport[]>([]);
-  const [view, setView] = useState<"today" | "reports">("today");
+  const [view, setView] = useState<"today" | "reports" | "chat">("today");
   const [selectedReport, setSelectedReport] = useState<string>("");
   const [reportSaving, setReportSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -850,7 +852,17 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
           <Folder strokeWidth={2} />
           <span>Saved daily reports</span>
         </button>
+        <button
+          type="button"
+          className={`tally-tab ${view === "chat" ? "tally-tab--active" : ""}`}
+          onClick={() => setView("chat")}
+        >
+          <MessageCircle strokeWidth={2} />
+          <span>Team chat</span>
+        </button>
       </nav>
+
+      {view === "chat" && <TeamChat userId={userId} fullName={fullName} />}
 
       {loadError && (
         <div role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
