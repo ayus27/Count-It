@@ -577,6 +577,8 @@
 .tally-tabs {
   display: flex;
   gap: 24px;
+  overflow-x: auto;
+  scrollbar-width: none;
   border-bottom: 1px solid var(--border);
   padding-bottom: 0;
 }
