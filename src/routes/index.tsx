@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TeamChat } from "@/components/team-chat";
+import { TeamGoal } from "@/components/team-goal";
+import { MilestoneCelebration, type Celebration } from "@/components/milestone-celebration";
+import { crossedMilestones, summarizeTeamProgress, type TeamMemberProgress } from "@/lib/team";
 import type { Json } from "@/integrations/supabase/types";
 import {
   CARD_COLORS,
@@ -43,7 +46,7 @@ import {
   ExternalLink,
   Save,
   RotateCcw,
-  MessageCircle,
+  Target,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -320,6 +323,7 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
   const day = useMemo(() => todayKey(), []);
   const [counters, setCounters] = useState<Counter[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [assignedCalls, setAssignedCalls] = useState(0);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -365,7 +369,14 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
   const skipSave = useRef(true);
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const [history, setHistory] = useState<SavedReport[]>([]);
-  const [view, setView] = useState<"today" | "reports" | "chat">("today");
+  const [view, setView] = useState<"today" | "reports">("today");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [teamProgress, setTeamProgress] = useState<TeamMemberProgress[]>([]);
+  const [teamProgressReady, setTeamProgressReady] = useState(false);
+  const [teamProgressError, setTeamProgressError] = useState("");
+  const [celebration, setCelebration] = useState<Celebration | null>(null);
+  const milestonePrevious = useRef<{ personal: number; team: number } | null>(null);
+  const celebratedMilestones = useRef<Set<string> | null>(null);
   const [selectedReport, setSelectedReport] = useState<string>("");
   const [reportSaving, setReportSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -381,6 +392,18 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
 
   // Time-aware greeting
   const greetingData = useMemo(() => getSmartGreeting(fullName), [fullName]);
+
+  const loadTeamProgress = useCallback(async () => {
+    const { data, error } = await supabase.rpc("get_team_daily_progress", { _day: day });
+    if (error) {
+      setTeamProgress([]);
+      setTeamProgressError("Join the team chat to share goals, or try again shortly if you are already a member.");
+    } else {
+      setTeamProgress((data ?? []) as TeamMemberProgress[]);
+      setTeamProgressError("");
+    }
+    setTeamProgressReady(true);
+  }, [day]);
 
   // Load user's counters & data on mount
   useEffect(() => {
