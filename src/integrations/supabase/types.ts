@@ -82,6 +82,7 @@ export type Database = {
       }
       tally_days: {
         Row: {
+          calls_assigned: number
           counts: Json
           day: string
           report: Json | null
@@ -91,6 +92,7 @@ export type Database = {
           visitors: Json
         }
         Insert: {
+          calls_assigned?: number
           counts?: Json
           day: string
           report?: Json | null
@@ -100,6 +102,7 @@ export type Database = {
           visitors?: Json
         }
         Update: {
+          calls_assigned?: number
           counts?: Json
           day?: string
           report?: Json | null
@@ -114,18 +117,21 @@ export type Database = {
         Row: {
           full_name: string
           joined_at: string
+          last_seen_at: string | null
           public_key: Json
           user_id: string
         }
         Insert: {
           full_name: string
           joined_at?: string
+          last_seen_at?: string | null
           public_key: Json
           user_id: string
         }
         Update: {
           full_name?: string
           joined_at?: string
+          last_seen_at?: string | null
           public_key?: Json
           user_id?: string
         }
@@ -151,6 +157,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_team_daily_progress: {
+        Args: { _day: string }
+        Returns: {
+          calls_assigned: number
+          dialed: number
+          full_name: string
+          last_seen_at: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       initialize_counters: { Args: never; Returns: undefined }
       is_workspace_member: { Args: { _uid: string }; Returns: boolean }
       join_workspace: {

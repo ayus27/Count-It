@@ -29,6 +29,13 @@
       "when": 1794374795863,
       "tag": "0003_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794592527681,
+      "tag": "0004_team_goals_and_activity",
+      "breakpoints": true
     }
   ]
 }
