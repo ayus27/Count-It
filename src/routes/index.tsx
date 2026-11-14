@@ -609,7 +609,7 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
     }
     if (hits.length) {
       localStorage.setItem(key, JSON.stringify([...seen]));
-      setCelebration(hits[hits.length - 1]);
+      setCelebration(hits[hits.length - 1] ?? null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personalPct, teamPct, loaded]);
