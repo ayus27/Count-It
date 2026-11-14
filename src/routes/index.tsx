@@ -375,6 +375,8 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
   const [teamProgressReady, setTeamProgressReady] = useState(false);
   const [teamProgressError, setTeamProgressError] = useState("");
   const [celebration, setCelebration] = useState<Celebration | null>(null);
+  const [callsAssigned, setCallsAssigned] = useState(0);
+  const [assignedDraft, setAssignedDraft] = useState("");
   const milestonePrevious = useRef<{ personal: number; team: number } | null>(null);
   const celebratedMilestones = useRef<Set<string> | null>(null);
   const [selectedReport, setSelectedReport] = useState<string>("");
@@ -479,6 +481,9 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
         setCounters(activeCounters);
         setCounts(normalizeCounts(activeCounters, (d?.counts as Record<string, number>) ?? {}));
         setVisitors((d?.visitors as Visitor[]) ?? []);
+        const assigned = Number((d as { calls_assigned?: number } | null)?.calls_assigned ?? 0);
+        setCallsAssigned(assigned);
+        setAssignedDraft(assigned ? String(assigned) : "");
         setHistory(
           (reports ?? []).map((r) => ({
             day: r.day,
@@ -540,6 +545,80 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
   }, [day]);
 
   const totals = computeTotals(counters, counts);
+
+  // Background sync of team progress every minute (no page reload)
+  useEffect(() => {
+    void loadTeamProgress();
+    const i = setInterval(() => void loadTeamProgress(), 60000);
+    const onFocus = () => void loadTeamProgress();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(i);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [loadTeamProgress]);
+
+  // Refresh team progress shortly after own counts change
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => void loadTeamProgress(), 1500);
+    return () => clearTimeout(t);
+  }, [totals.dialed, callsAssigned, loaded, loadTeamProgress]);
+
+  const saveAssigned = async () => {
+    const n = Math.max(0, Math.min(100000, Math.floor(Number(assignedDraft) || 0)));
+    setAssignedDraft(n ? String(n) : "");
+    if (n === callsAssigned) return;
+    setCallsAssigned(n);
+    await saveQueue.current;
+    const { error } = await supabase.from("tally_days").upsert({ user_id: userId, day, counts, visitors, calls_assigned: n, updated_at: new Date().toISOString() });
+    if (error) flash("Could not save assigned calls");
+    else void loadTeamProgress();
+  };
+
+  // Milestone celebrations (personal 50%/100%, team 50%/100%)
+  const teamSummary = summarizeTeamProgress(teamProgress);
+  const personalPct = callsAssigned > 0 ? Math.round((totals.dialed / callsAssigned) * 100) : 0;
+  const teamPct = teamSummary.percentage;
+  useEffect(() => {
+    if (!loaded) return;
+    const key = `milestones-${userId}-${day}`;
+    if (!celebratedMilestones.current) {
+      try {
+        celebratedMilestones.current = new Set(JSON.parse(localStorage.getItem(key) ?? "[]"));
+      } catch {
+        celebratedMilestones.current = new Set();
+      }
+    }
+    const prev = milestonePrevious.current;
+    milestonePrevious.current = { personal: personalPct, team: teamPct };
+    if (!prev) return;
+    const seen = celebratedMilestones.current;
+    const hits: Celebration[] = [];
+    for (const m of crossedMilestones(prev.personal, personalPct, [50, 100])) {
+      if (seen.has(`p${m}`)) continue;
+      seen.add(`p${m}`);
+      hits.push({ id: Date.now() + m, title: m === 100 ? "Personal target reached! 🎉" : "Halfway there!", body: `You've dialed ${totals.dialed} of ${callsAssigned} assigned calls.` });
+    }
+    if (teamSummary.assigned > 0) {
+      for (const m of crossedMilestones(prev.team, teamPct, [50, 100])) {
+        if (seen.has(`t${m}`)) continue;
+        seen.add(`t${m}`);
+        hits.push({ id: Date.now() + 1000 + m, title: m === 100 ? "Team goal smashed! 🏆" : "Team is halfway!", body: `${teamSummary.dialed} of ${teamSummary.assigned} team calls dialed.` });
+      }
+    }
+    if (hits.length) {
+      localStorage.setItem(key, JSON.stringify([...seen]));
+      setCelebration(hits[hits.length - 1] ?? null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personalPct, teamPct, loaded]);
+
+  useEffect(() => {
+    if (!celebration) return;
+    const t = setTimeout(() => setCelebration(null), 6000);
+    return () => clearTimeout(t);
+  }, [celebration]);
 
   const flash = (m: string) => {
     setNote(m);
@@ -819,6 +898,27 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
             <p className="text-xs text-muted-foreground">{dateLabel}</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">{greetingData.greeting}</h1>
             <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{greetingData.subtext}</p>
+            <form
+              className="assigned-pill mt-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveAssigned();
+              }}
+            >
+              <label htmlFor="calls-assigned">My total calls assigned</label>
+              <input
+                id="calls-assigned"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={100000}
+                placeholder="e.g. 60"
+                value={assignedDraft}
+                onChange={(e) => setAssignedDraft(e.target.value)}
+                onBlur={() => void saveAssigned()}
+              />
+              {callsAssigned > 0 && <span className="assigned-pill__progress">{totals.dialed}/{callsAssigned}</span>}
+            </form>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -875,17 +975,20 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
           <Folder strokeWidth={2} />
           <span>Saved daily reports</span>
         </button>
-        <button
-          type="button"
-          className={`tally-tab ${view === "chat" ? "tally-tab--active" : ""}`}
-          onClick={() => setView("chat")}
-        >
-          <MessageCircle strokeWidth={2} />
-          <span>Team chat</span>
-        </button>
       </nav>
 
-      {view === "chat" && <TeamChat userId={userId} fullName={fullName} />}
+      <div className="mt-4">
+        <TeamGoal
+          members={teamProgress}
+          currentUserId={userId}
+          ready={teamProgressReady}
+          error={teamProgressError}
+          onOpenChat={() => setChatOpen(true)}
+        />
+      </div>
+
+      <TeamChat userId={userId} fullName={fullName} open={chatOpen} onOpenChange={setChatOpen} onMembershipChange={loadTeamProgress} />
+      {celebration && <MilestoneCelebration celebration={celebration} onClose={() => setCelebration(null)} />}
 
       {loadError && (
         <div role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
