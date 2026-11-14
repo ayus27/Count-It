@@ -892,9 +892,8 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
   return (
     <main className="tally-container py-6">
       {/* ── Header ── */}
-      <header className="section-panel">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
+      <header className="header-grid">
+          <div className="section-panel min-w-0">
             <p className="text-xs text-muted-foreground">{dateLabel}</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">{greetingData.greeting}</h1>
             <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{greetingData.subtext}</p>
@@ -921,11 +920,21 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
             </form>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="header-grid__middle min-w-0">
+            <TeamGoal
+              members={teamProgress}
+              currentUserId={userId}
+              ready={teamProgressReady}
+              error={teamProgressError}
+              onOpenChat={() => setChatOpen(true)}
+            />
+          </div>
+
+          <div className="section-panel header-actions">
             <ThemeToggle />
             <button
               type="button"
-              className={`btn ${editing ? "btn--primary" : "btn--outline"}`}
+              className={`btn btn--sm ${editing ? "btn--primary" : "btn--outline"}`}
               onClick={() => {
                 if (editing && hasReordered) {
                   saveLayoutPreference();
@@ -947,14 +956,13 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
             </button>
             <button
               type="button"
-              className="btn btn--ghost text-xs text-muted-foreground hover:text-foreground"
+              className="btn btn--sm btn--ghost text-xs text-muted-foreground hover:text-foreground"
               onClick={() => supabase.auth.signOut()}
             >
               <LogOut className="h-4 w-4" strokeWidth={2} />
               <span>Sign out</span>
             </button>
           </div>
-        </div>
       </header>
 
       {/* ── Underline Tabs ── */}
@@ -977,15 +985,6 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
         </button>
       </nav>
 
-      <div className="mt-4">
-        <TeamGoal
-          members={teamProgress}
-          currentUserId={userId}
-          ready={teamProgressReady}
-          error={teamProgressError}
-          onOpenChat={() => setChatOpen(true)}
-        />
-      </div>
 
       <TeamChat userId={userId} fullName={fullName} open={chatOpen} onOpenChange={setChatOpen} onMembershipChange={loadTeamProgress} />
       {celebration && <MilestoneCelebration celebration={celebration} onClose={() => setCelebration(null)} />}
