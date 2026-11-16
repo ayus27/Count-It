@@ -8,8 +8,11 @@ import {
   Check,
   Hash,
   LoaderCircle,
+  Maximize2,
   MessageCircle,
   MessagesSquare,
+  Minimize2,
+  Minus,
   Pencil,
   RefreshCw,
   Send,
@@ -39,6 +42,33 @@ import {
   saveMutedConversations,
   saveSoundEnabled,
 } from "@/lib/notifications";
+
+type WindowMode = "floating" | "expanded" | "minimized";
+const WINDOW_MODE_KEY = "ft_chat_window_mode";
+
+function loadWindowMode(): WindowMode {
+  try {
+    const saved = localStorage.getItem(WINDOW_MODE_KEY);
+    if (saved === "floating" || saved === "expanded" || saved === "minimized") return saved;
+  } catch { /* ignore */ }
+  return "floating";
+}
+
+function saveWindowMode(mode: WindowMode) {
+  try { localStorage.setItem(WINDOW_MODE_KEY, mode); } catch { /* ignore */ }
+}
+
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < breakpoint);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mql.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
 
 type Row = {
   id: string;
@@ -96,6 +126,15 @@ export function TeamChat({
   const [nameMessage, setNameMessage] = useState("");
   const membersRef = useRef<ChatMember[]>([]);
   const keysRef = useRef<LocalKeys | null>(null);
+
+  // ── Window mode state ──
+  const [windowMode, setWindowMode] = useState<WindowMode>(loadWindowMode);
+  const isMobile = useIsMobile();
+
+  const changeMode = (mode: WindowMode) => {
+    setWindowMode(mode);
+    saveWindowMode(mode);
+  };
 
   const loadMembers = useCallback(async () => {
     const { data, error: loadError } = await supabase
@@ -287,215 +326,343 @@ export function TeamChat({
     setNameBusy(false);
   };
 
+  // ── Determine effective display mode ──
+  const effectiveMode: WindowMode = isMobile ? "expanded" : windowMode;
+  const isFloating = effectiveMode === "floating";
+  const isMinimized = effectiveMode === "minimized";
+  const isExpanded = effectiveMode === "expanded";
+
   return (
     <>
-      <button
-        type="button"
-        className="chat-dock"
-        onClick={() => onOpenChange(true)}
-        aria-label={`Open team chat${unreadTotal ? `, ${unreadTotal} unread messages` : ""}`}
-        aria-expanded={open}
-      >
-        <span className="chat-dock__icon">
-          <MessagesSquare className="h-5 w-5" />
-          {unreadTotal > 0 && <span className="chat-dock__badge">{unreadTotal > 99 ? "99+" : unreadTotal}</span>}
-        </span>
-        <span className="chat-dock__label">Team chat</span>
-        <span className="chat-dock__online">{onlineCount} online</span>
-      </button>
+      {/* ── Dock badge: only show when fully closed (not open in any mode) ── */}
+      {!open && (
+        <button
+          type="button"
+          className="chat-dock"
+          onClick={() => onOpenChange(true)}
+          aria-label={`Open team chat${unreadTotal ? `, ${unreadTotal} unread messages` : ""}`}
+          aria-expanded={open}
+        >
+          <span className="chat-dock__icon">
+            <MessagesSquare className="h-5 w-5" />
+            {unreadTotal > 0 && <span className="chat-dock__badge">{unreadTotal > 99 ? "99+" : unreadTotal}</span>}
+          </span>
+          <span className="chat-dock__label">Team chat</span>
+          <span className="chat-dock__online">{onlineCount} online</span>
+        </button>
+      )}
 
-      {open && <button type="button" className="chat-backdrop" aria-label="Close team chat" onClick={() => onOpenChange(false)} />}
-      <aside
-        className={`chat-drawer ${open ? "chat-drawer--open" : ""}`}
-        aria-label="Team chat"
-        aria-hidden={!open}
-        aria-modal={open}
-        role="dialog"
-        inert={!open}
-      >
-        <div className="chat-drawer__topbar">
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><MessagesSquare className="h-4 w-4 shrink-0" /> Team chat</p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {status === "ready" ? `${onlineCount} online · ${members.length} members` : "Private coworker conversations"}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-0.5">
-            {status === "ready" && (
-              <>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--icon"
-                  onClick={() => void refreshChat()}
-                  aria-label="Refresh chat"
-                  title="Refresh chat"
-                  disabled={refreshing}
-                >
-                  <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--icon"
-                  onClick={toggleSound}
-                  aria-label={soundEnabled ? "Turn off all chat and achievement sounds" : "Turn on chat and achievement sounds"}
-                  title={soundEnabled ? "Sounds on" : "Sounds off"}
-                  aria-pressed={soundEnabled}
-                >
-                  {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn--ghost btn--icon ${profileOpen ? "bg-secondary" : ""}`}
-                  onClick={() => {
-                    setProfileOpen((shown) => !shown);
-                    setNameMessage("");
-                    setNickname(memberMap.get(userId)?.full_name ?? fullName);
-                  }}
-                  aria-label="Edit chat nickname"
-                  aria-expanded={profileOpen}
-                  title="Chat nickname"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              </>
-            )}
-            <button type="button" className="btn btn--ghost btn--icon" onClick={() => onOpenChange(false)} aria-label="Close team chat" title="Close">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+      {/* ── Minimized pill ── */}
+      {open && isMinimized && (
+        <button
+          type="button"
+          className="chat-minimized-pill"
+          onClick={() => changeMode("floating")}
+          aria-label={`Restore team chat${unreadTotal ? `, ${unreadTotal} unread` : ""}`}
+        >
+          <span className="chat-minimized-pill__dot" />
+          <span className="chat-minimized-pill__title">Team chat</span>
+          {unreadTotal > 0 && <span className="chat-minimized-pill__badge">{unreadTotal > 99 ? "99+" : unreadTotal}</span>}
+          <Maximize2 className="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+      )}
 
-        {profileOpen && status === "ready" && (
-          <form
-            className="chat-profile"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void saveNickname();
-            }}
-          >
-            <label htmlFor="chat-nickname" className="text-xs font-semibold text-foreground">Chat nickname</label>
-            <div className="mt-2 flex gap-2">
-              <input
-                id="chat-nickname"
-                className="chat-field"
-                value={nickname}
-                onChange={(event) => setNickname(event.target.value)}
-                maxLength={40}
-                autoComplete="nickname"
-                placeholder="How coworkers see you"
-              />
-              <button type="submit" className="btn btn--primary shrink-0" disabled={nameBusy || !nickname.trim()}>
-                {nameBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {nameBusy ? "Saving…" : "Save"}
+      {/* ── Backdrop: only for expanded mode ── */}
+      {open && isExpanded && <button type="button" className="chat-backdrop" aria-label="Close team chat" onClick={() => onOpenChange(false)} />}
+
+      {/* ── Main chat container ── */}
+      {open && !isMinimized && (
+        <aside
+          className={`
+            ${isExpanded ? `chat-drawer chat-drawer--open` : ""}
+            ${isFloating ? "chat-floating" : ""}
+          `}
+          aria-label="Team chat"
+          aria-modal={isExpanded}
+          role="dialog"
+        >
+          {/* ── Top bar ── */}
+          <div className="chat-drawer__topbar">
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><MessagesSquare className="h-4 w-4 shrink-0" /> Team chat</p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {status === "ready" ? `${onlineCount} online · ${members.length} members` : "Private coworker conversations"}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5">
+              {status === "ready" && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--icon"
+                    onClick={() => void refreshChat()}
+                    aria-label="Refresh chat"
+                    title="Refresh chat"
+                    disabled={refreshing}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--icon"
+                    onClick={toggleSound}
+                    aria-label={soundEnabled ? "Turn off all chat and achievement sounds" : "Turn on chat and achievement sounds"}
+                    title={soundEnabled ? "Sounds on" : "Sounds off"}
+                    aria-pressed={soundEnabled}
+                  >
+                    {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn--ghost btn--icon ${profileOpen ? "bg-secondary" : ""}`}
+                    onClick={() => {
+                      setProfileOpen((shown) => !shown);
+                      setNameMessage("");
+                      setNickname(memberMap.get(userId)?.full_name ?? fullName);
+                    }}
+                    aria-label="Edit chat nickname"
+                    aria-expanded={profileOpen}
+                    title="Chat nickname"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+
+              {/* ── Window control buttons (desktop only) ── */}
+              {!isMobile && (
+                <>
+                  {/* Minimize to pill */}
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--icon"
+                    onClick={() => changeMode("minimized")}
+                    aria-label="Minimize to pill"
+                    title="Minimize"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+
+                  {/* Toggle between floating and expanded */}
+                  {isFloating ? (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--icon"
+                      onClick={() => changeMode("expanded")}
+                      aria-label="Expand to full drawer"
+                      title="Expand"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--icon"
+                      onClick={() => changeMode("floating")}
+                      aria-label="Float as compact window"
+                      title="Float"
+                    >
+                      <Minimize2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Close */}
+              <button type="button" className="btn btn--ghost btn--icon" onClick={() => onOpenChange(false)} aria-label="Close team chat" title="Close">
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-1.5 text-[11px] text-muted-foreground">Used in chats, the member list, and caller progress.</p>
-            {nameMessage && <p className={`mt-1 text-xs ${nameMessage.includes("saved") ? "text-foreground" : "text-destructive"}`} role="status">{nameMessage}</p>}
-          </form>
-        )}
+          </div>
 
-        {error && (
-          <div className="m-4 rounded-lg border border-destructive/30 p-3 text-sm text-destructive" role="alert">
-            <p>{error}</p>
-            <button type="button" className="btn btn--outline mt-3" onClick={() => window.location.reload()}>Try again</button>
-          </div>
-        )}
-        {status === "loading" && !error && (
-          <div className="flex flex-1 items-center justify-center" aria-label="Loading team chat">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
-        )}
-        {status === "join" && !error && (
-          <JoinCard
-            defaultName={fullName}
-            onJoined={async (localKeys) => {
-              keysRef.current = localKeys;
-              await loadMembers();
-              setActive(GROUP);
-              setStatus("ready");
-              onMembershipChange?.();
-            }}
-            userId={userId}
-          />
-        )}
-        {status === "ready" && !error && (
-          <>
-            {messageError && (
-              <div className="chat-sync-error" role="alert">
-                <span>{messageError}</span>
-                <button type="button" onClick={() => void loadMessages()}>Retry</button>
-              </div>
-            )}
-            <div className="chat-shell">
-              <div className={`chat-sidebar ${active ? "chat-hide-mobile" : ""}`}>
-                <p className="chat-section-label">Group</p>
-                <ConvoButton
-                  active={active === GROUP}
-                  onClick={() => selectConversation(GROUP)}
-                  avatar={<Hash className="h-4 w-4" />}
-                  title="Footset Team Lounge"
-                  last={preview(messages, GROUP, userId)}
-                  memberMap={memberMap}
-                  userId={userId}
-                  unread={unread[GROUP] ?? 0}
-                  muted={Boolean(muted[GROUP])}
+          {profileOpen && status === "ready" && (
+            <form
+              className="chat-profile"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveNickname();
+              }}
+            >
+              <label htmlFor="chat-nickname" className="text-xs font-semibold text-foreground">Chat nickname</label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="chat-nickname"
+                  className="chat-field"
+                  value={nickname}
+                  onChange={(event) => setNickname(event.target.value)}
+                  maxLength={40}
+                  autoComplete="nickname"
+                  placeholder="How coworkers see you"
                 />
-                <details className="chat-roster">
-                  <summary><UsersRound className="h-3.5 w-3.5" /> {members.length} group members</summary>
-                  <div className="mt-2 space-y-2">
-                    {members.map((member) => (
-                      <div key={member.user_id} className="chat-roster__member">
-                        <span className={`status-dot ${member.user_id === userId || isMemberOnline(member.last_seen_at) ? "status-dot--online" : ""}`} />
-                        <span className="truncate">{member.full_name}{member.user_id === userId ? " (you)" : ""}</span>
+                <button type="submit" className="btn btn--primary shrink-0" disabled={nameBusy || !nickname.trim()}>
+                  {nameBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {nameBusy ? "Saving…" : "Save"}
+                </button>
+              </div>
+              <p className="mt-1.5 text-[11px] text-muted-foreground">Used in chats, the member list, and caller progress.</p>
+              {nameMessage && <p className={`mt-1 text-xs ${nameMessage.includes("saved") ? "text-foreground" : "text-destructive"}`} role="status">{nameMessage}</p>}
+            </form>
+          )}
+
+          {error && (
+            <div className="m-4 rounded-lg border border-destructive/30 p-3 text-sm text-destructive" role="alert">
+              <p>{error}</p>
+              <button type="button" className="btn btn--outline mt-3" onClick={() => window.location.reload()}>Try again</button>
+            </div>
+          )}
+          {status === "loading" && !error && (
+            <div className="flex flex-1 items-center justify-center" aria-label="Loading team chat">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          )}
+          {status === "join" && !error && (
+            <JoinCard
+              defaultName={fullName}
+              onJoined={async (localKeys) => {
+                keysRef.current = localKeys;
+                await loadMembers();
+                setActive(GROUP);
+                setStatus("ready");
+                onMembershipChange?.();
+              }}
+              userId={userId}
+            />
+          )}
+          {status === "ready" && !error && (
+            <>
+              {messageError && (
+                <div className="chat-sync-error" role="alert">
+                  <span>{messageError}</span>
+                  <button type="button" onClick={() => void loadMessages()}>Retry</button>
+                </div>
+              )}
+
+              {/* ── Floating mode: single-pane view ── */}
+              {isFloating ? (
+                <div className="chat-floating__body">
+                  {active ? (
+                    <Conversation
+                      key={active}
+                      id={active}
+                      title={active === GROUP ? "Footset Team Lounge" : memberMap.get(active)?.full_name ?? "Coworker"}
+                      messages={conversationMessages(messages, active, userId)}
+                      memberMap={memberMap}
+                      userId={userId}
+                      onlineCount={onlineCount}
+                      muted={Boolean(muted[active])}
+                      onToggleMute={() => toggleMute(active)}
+                      onBack={() => setActive(null)}
+                      onSent={(shown) => setMessages((current) => mergeMessages(current, [shown]))}
+                      compact
+                    />
+                  ) : (
+                    <div className="chat-floating__list">
+                      <p className="chat-section-label">Group</p>
+                      <ConvoButton
+                        active={false}
+                        onClick={() => selectConversation(GROUP)}
+                        avatar={<Hash className="h-4 w-4" />}
+                        title="Footset Team Lounge"
+                        last={preview(messages, GROUP, userId)}
+                        memberMap={memberMap}
+                        userId={userId}
+                        unread={unread[GROUP] ?? 0}
+                        muted={Boolean(muted[GROUP])}
+                      />
+                      <p className="chat-section-label mt-3">Coworkers · {members.filter((m) => m.user_id !== userId).length}</p>
+                      {members.filter((m) => m.user_id !== userId).length === 0 && <p className="px-2 text-xs text-muted-foreground">No one else has joined yet.</p>}
+                      {members.filter((m) => m.user_id !== userId).map((member) => (
+                        <ConvoButton
+                          key={member.user_id}
+                          active={false}
+                          onClick={() => selectConversation(member.user_id)}
+                          avatar={initials(member.full_name)}
+                          title={member.full_name}
+                          last={preview(messages, member.user_id, userId)}
+                          memberMap={memberMap}
+                          userId={userId}
+                          online={isMemberOnline(member.last_seen_at)}
+                          unread={unread[member.user_id] ?? 0}
+                          muted={Boolean(muted[member.user_id])}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* ── Expanded mode: two-column view ── */
+                <div className="chat-shell">
+                  <div className={`chat-sidebar ${active ? "chat-hide-mobile" : ""}`}>
+                    <p className="chat-section-label">Group</p>
+                    <ConvoButton
+                      active={active === GROUP}
+                      onClick={() => selectConversation(GROUP)}
+                      avatar={<Hash className="h-4 w-4" />}
+                      title="Footset Team Lounge"
+                      last={preview(messages, GROUP, userId)}
+                      memberMap={memberMap}
+                      userId={userId}
+                      unread={unread[GROUP] ?? 0}
+                      muted={Boolean(muted[GROUP])}
+                    />
+                    <details className="chat-roster">
+                      <summary><UsersRound className="h-3.5 w-3.5" /> {members.length} group members</summary>
+                      <div className="mt-2 space-y-2">
+                        {members.map((member) => (
+                          <div key={member.user_id} className="chat-roster__member">
+                            <span className={`status-dot ${member.user_id === userId || isMemberOnline(member.last_seen_at) ? "status-dot--online" : ""}`} />
+                            <span className="truncate">{member.full_name}{member.user_id === userId ? " (you)" : ""}</span>
+                          </div>
+                        ))}
                       </div>
+                    </details>
+                    <p className="chat-section-label mt-4">Coworkers · {members.filter((member) => member.user_id !== userId).length}</p>
+                    {members.filter((member) => member.user_id !== userId).length === 0 && <p className="px-2 text-xs text-muted-foreground">No one else has joined yet.</p>}
+                    {members.filter((member) => member.user_id !== userId).map((member) => (
+                      <ConvoButton
+                        key={member.user_id}
+                        active={active === member.user_id}
+                        onClick={() => selectConversation(member.user_id)}
+                        avatar={initials(member.full_name)}
+                        title={member.full_name}
+                        last={preview(messages, member.user_id, userId)}
+                        memberMap={memberMap}
+                        userId={userId}
+                        online={isMemberOnline(member.last_seen_at)}
+                        unread={unread[member.user_id] ?? 0}
+                        muted={Boolean(muted[member.user_id])}
+                      />
                     ))}
                   </div>
-                </details>
-                <p className="chat-section-label mt-4">Coworkers · {members.filter((member) => member.user_id !== userId).length}</p>
-                {members.filter((member) => member.user_id !== userId).length === 0 && <p className="px-2 text-xs text-muted-foreground">No one else has joined yet.</p>}
-                {members.filter((member) => member.user_id !== userId).map((member) => (
-                  <ConvoButton
-                    key={member.user_id}
-                    active={active === member.user_id}
-                    onClick={() => selectConversation(member.user_id)}
-                    avatar={initials(member.full_name)}
-                    title={member.full_name}
-                    last={preview(messages, member.user_id, userId)}
-                    memberMap={memberMap}
-                    userId={userId}
-                    online={isMemberOnline(member.last_seen_at)}
-                    unread={unread[member.user_id] ?? 0}
-                    muted={Boolean(muted[member.user_id])}
-                  />
-                ))}
-              </div>
-              <section className={`chat-pane ${active ? "" : "chat-hide-mobile"}`}>
-                {active ? (
-                  <Conversation
-                    key={active}
-                    id={active}
-                    title={active === GROUP ? "Footset Team Lounge" : memberMap.get(active)?.full_name ?? "Coworker"}
-                    messages={conversationMessages(messages, active, userId)}
-                    memberMap={memberMap}
-                    userId={userId}
-                    onlineCount={onlineCount}
-                    muted={Boolean(muted[active])}
-                    onToggleMute={() => toggleMute(active)}
-                    onBack={() => setActive(null)}
-                    onSent={(shown) => setMessages((current) => mergeMessages(current, [shown]))}
-                  />
-                ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
-                    <MessageCircle className="h-8 w-8" />
-                    <p className="text-sm">Pick the team group or a coworker to start chatting.</p>
-                    <p className="text-xs">Your conversations stay synced across your signed-in devices.</p>
-                  </div>
-                )}
-              </section>
-            </div>
-          </>
-        )}
-      </aside>
+                  <section className={`chat-pane ${active ? "" : "chat-hide-mobile"}`}>
+                    {active ? (
+                      <Conversation
+                        key={active}
+                        id={active}
+                        title={active === GROUP ? "Footset Team Lounge" : memberMap.get(active)?.full_name ?? "Coworker"}
+                        messages={conversationMessages(messages, active, userId)}
+                        memberMap={memberMap}
+                        userId={userId}
+                        onlineCount={onlineCount}
+                        muted={Boolean(muted[active])}
+                        onToggleMute={() => toggleMute(active)}
+                        onBack={() => setActive(null)}
+                        onSent={(shown) => setMessages((current) => mergeMessages(current, [shown]))}
+                      />
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
+                        <MessageCircle className="h-8 w-8" />
+                        <p className="text-sm">Pick the team group or a coworker to start chatting.</p>
+                        <p className="text-xs">Your conversations stay synced across your signed-in devices.</p>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              )}
+            </>
+          )}
+        </aside>
+      )}
     </>
   );
 }
@@ -553,6 +720,7 @@ function Conversation(props: {
   onToggleMute: () => void;
   onBack: () => void;
   onSent: (shown: Shown) => void;
+  compact?: boolean;
 }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -602,7 +770,7 @@ function Conversation(props: {
   return (
     <div className="chat-conversation">
       <header className="chat-header">
-        <button type="button" className="btn btn--ghost chat-back" onClick={props.onBack} aria-label="Back to conversations">
+        <button type="button" className={`btn btn--ghost ${props.compact ? "chat-back--compact" : "chat-back"}`} onClick={props.onBack} aria-label="Back to conversations">
           <ArrowLeft className="h-4 w-4" />
         </button>
         <span className="chat-avatar">{isGroup ? <Hash className="h-4 w-4" /> : initials(props.title)}</span>

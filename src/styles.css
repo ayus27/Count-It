@@ -1018,3 +1018,161 @@
   .chat-drawer__topbar .btn--icon { width: 34px; height: 34px; padding: 7px; }
   .chat-profile { padding: 10px; }
 }
+
+/* ── Floating compact chat window ── */
+.chat-floating {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 60;
+  width: 370px;
+  height: min(500px, calc(100vh - 5rem));
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  animation: chat-float-in 0.2s ease;
+}
+
+@keyframes chat-float-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.chat-floating .chat-drawer__topbar {
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-floating .chat-drawer__topbar .btn--icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.chat-floating .chat-drawer__topbar .btn--icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.chat-floating .chat-profile {
+  padding: 8px 10px;
+}
+
+.chat-floating__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-floating__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  overscroll-behavior: contain;
+}
+
+.chat-floating .chat-conversation {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-floating .chat-header {
+  padding: 8px 10px;
+  min-height: 48px;
+}
+
+.chat-floating .chat-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.chat-floating .chat-input {
+  padding: 8px;
+}
+
+.chat-floating .chat-sync-error {
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+/* Back button always visible in compact floating mode */
+.chat-back--compact {
+  display: inline-flex;
+  padding: 6px;
+}
+
+/* ── Minimized pill ── */
+.chat-minimized-pill {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 260px;
+  height: 44px;
+  padding: 0 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: background 150ms ease, box-shadow 150ms ease;
+  animation: chat-float-in 0.2s ease;
+}
+
+.chat-minimized-pill:hover {
+  background: var(--muted);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.chat-minimized-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: oklch(0.7 0.17 150);
+  flex-shrink: 0;
+}
+
+.chat-minimized-pill__title {
+  flex: 1;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  text-align: left;
+}
+
+.chat-minimized-pill__badge {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--destructive);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* ── Hide the dock badge when chat is open (any mode) ── */
+/* The dock badge rendering is now conditional in JSX */
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-floating, .chat-minimized-pill { animation: none; }
+}
