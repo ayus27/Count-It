@@ -8,3 +8,5 @@
 - [ ] Add each caller's assigned-call target and a shared team goal with milestone celebrations.
 - [ ] Synchronize team progress and activity quietly every 60 seconds without reloading the page.
 - [ ] Verify the new flows and provide the incremental database script for the external Supabase/Vercel setup.
+- [ ] Keep the focused chat drawer; fix scrolling, sending, history sync, and every chat control.
+- [ ] Add editable chat nicknames, per-conversation mute, and message/achievement sounds; skip OTP for now.
