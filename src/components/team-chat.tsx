@@ -410,7 +410,6 @@ export function TeamChat({
             defaultName={fullName}
             onJoined={async (localKeys) => {
               keysRef.current = localKeys;
-              setKeys(localKeys);
               await loadMembers();
               setActive(GROUP);
               setStatus("ready");
