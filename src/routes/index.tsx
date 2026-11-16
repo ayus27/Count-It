@@ -617,9 +617,10 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
 
   useEffect(() => {
     if (!celebration) return;
+    playAchievementSound(userId);
     const t = setTimeout(() => setCelebration(null), 6000);
     return () => clearTimeout(t);
-  }, [celebration]);
+  }, [celebration, userId]);
 
   const flash = (m: string) => {
     setNote(m);

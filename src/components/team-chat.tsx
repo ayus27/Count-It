@@ -165,7 +165,6 @@ export function TeamChat({
       const localKeys = await loadKeys(userId).catch(() => undefined);
       if (cancelled) return;
       keysRef.current = localKeys ?? null;
-      setKeys(localKeys ?? null);
       setActive((current) => current ?? GROUP);
       setStatus("ready");
       onMembershipChange?.();
