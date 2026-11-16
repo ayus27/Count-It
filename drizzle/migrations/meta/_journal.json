@@ -43,6 +43,13 @@
       "when": 1794669242382,
       "tag": "0005_fix_team_progress_cast",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794844931807,
+      "tag": "0006_sync_chat_messages_across_devices",
+      "breakpoints": true
     }
   ]
 }
