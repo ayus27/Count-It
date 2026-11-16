@@ -8,6 +8,7 @@ import { TeamChat } from "@/components/team-chat";
 import { TeamGoal } from "@/components/team-goal";
 import { MilestoneCelebration, type Celebration } from "@/components/milestone-celebration";
 import { crossedMilestones, summarizeTeamProgress, type TeamMemberProgress } from "@/lib/team";
+import { playAchievementSound } from "@/lib/notifications";
 import type { Json } from "@/integrations/supabase/types";
 import {
   CARD_COLORS,

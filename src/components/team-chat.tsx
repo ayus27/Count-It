@@ -81,7 +81,6 @@ export function TeamChat({
   onMembershipChange?: () => void;
 }) {
   const [status, setStatus] = useState<"loading" | "join" | "ready">("loading");
-  const [keys, setKeys] = useState<LocalKeys | null>(null);
   const [members, setMembers] = useState<ChatMember[]>([]);
   const [messages, setMessages] = useState<Shown[]>([]);
   const [active, setActive] = useState<string | null>(null);
