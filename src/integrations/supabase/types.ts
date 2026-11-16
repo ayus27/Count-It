@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       chat_messages: {
         Row: {
+          body: string | null
           ciphertext: string
           created_at: string
           id: string
@@ -25,6 +26,7 @@ export type Database = {
           wrapped_keys: Json | null
         }
         Insert: {
+          body?: string | null
           ciphertext: string
           created_at?: string
           id?: string
@@ -34,6 +36,7 @@ export type Database = {
           wrapped_keys?: Json | null
         }
         Update: {
+          body?: string | null
           ciphertext?: string
           created_at?: string
           id?: string

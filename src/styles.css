@@ -982,3 +982,39 @@
   .header-grid__middle .team-goal { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
   .header-grid__middle .team-goal__contributors { margin-top: 0; max-height: 11rem; overflow-y: auto; }
 }
+
+/* ── Chat reliability and controls ── */
+.chat-drawer { height: 100dvh; overflow: hidden; }
+.chat-drawer__topbar { flex-shrink: 0; gap: 8px; }
+.chat-drawer .chat-shell { flex: 1; grid-template-rows: minmax(0, 1fr); min-height: 0; overflow: hidden; }
+.chat-sidebar { min-width: 0; min-height: 0; overscroll-behavior: contain; }
+.chat-pane { min-height: 0; overflow: hidden; }
+.chat-conversation { display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; }
+.chat-header, .chat-input { flex-shrink: 0; }
+.chat-header { min-height: 61px; }
+.chat-messages {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+.chat-row { flex-shrink: 0; }
+.chat-input { align-items: center; background: var(--background); }
+.chat-emoji__tray { z-index: 5; }
+.chat-profile { flex-shrink: 0; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--card); }
+.chat-profile .chat-field { border-radius: var(--radius); }
+.chat-sync-error { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--muted); color: var(--foreground); font-size: 12px; }
+.chat-sync-error button { flex-shrink: 0; color: var(--primary); font-weight: 700; text-decoration: underline; }
+.chat-send-error { flex-shrink: 0; padding: 6px 14px 0; color: var(--destructive); font-size: 12px; }
+@media (max-width: 720px) {
+  .chat-drawer .chat-shell { height: auto; min-height: 0; }
+  .chat-messages { scrollbar-gutter: auto; }
+}
+@media (max-width: 420px) {
+  .chat-drawer__topbar { padding: 10px; }
+  .chat-drawer__topbar .btn--icon { width: 34px; height: 34px; padding: 7px; }
+  .chat-profile { padding: 10px; }
+}

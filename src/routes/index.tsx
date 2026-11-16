@@ -8,6 +8,7 @@ import { TeamChat } from "@/components/team-chat";
 import { TeamGoal } from "@/components/team-goal";
 import { MilestoneCelebration, type Celebration } from "@/components/milestone-celebration";
 import { crossedMilestones, summarizeTeamProgress, type TeamMemberProgress } from "@/lib/team";
+import { playAchievementSound } from "@/lib/notifications";
 import type { Json } from "@/integrations/supabase/types";
 import {
   CARD_COLORS,
@@ -616,9 +617,10 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
 
   useEffect(() => {
     if (!celebration) return;
+    playAchievementSound(userId);
     const t = setTimeout(() => setCelebration(null), 6000);
     return () => clearTimeout(t);
-  }, [celebration]);
+  }, [celebration, userId]);
 
   const flash = (m: string) => {
     setNote(m);
