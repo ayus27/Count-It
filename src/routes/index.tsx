@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { TeamChat } from "@/components/team-chat";
 import { TeamGoal } from "@/components/team-goal";
 import { MilestoneCelebration, type Celebration } from "@/components/milestone-celebration";
+import { CHROME_EXTENSION_ZIP, ExtensionPrompt } from "@/components/extension-prompt";
 import { crossedMilestones, summarizeTeamProgress, type TeamMemberProgress } from "@/lib/team";
 import { playAchievementSound } from "@/lib/notifications";
 import type { Json } from "@/integrations/supabase/types";
@@ -48,6 +49,7 @@ import {
   Save,
   RotateCcw,
   Target,
+  Puzzle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -956,6 +958,15 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
                 </>
               )}
             </button>
+            <a
+              href={CHROME_EXTENSION_ZIP}
+              download="count-it-extension.zip"
+              className="btn btn--sm btn--outline"
+              title="Download Count-It Chrome Extension ZIP"
+            >
+              <Puzzle className="h-4 w-4" strokeWidth={2} />
+              <span>Extension</span>
+            </a>
             <button
               type="button"
               className="btn btn--sm btn--ghost text-xs text-muted-foreground hover:text-foreground"
@@ -966,6 +977,8 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
             </button>
           </div>
       </header>
+
+      <ExtensionPrompt />
 
       {/* ── Underline Tabs ── */}
       <nav className="tally-tabs mt-6" aria-label="Tally views">
