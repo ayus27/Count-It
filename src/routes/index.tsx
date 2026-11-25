@@ -352,8 +352,8 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
   // Additional form details matching Google Form questions
   const [extraDetails, setExtraDetails] = useState<AdditionalFormDetails>({
     averageWorkingHours: "8 hrs",
-    leadTypeFollowedUp: "Autumn 2026 Walk-ins, Inquiries & Web leads",
-    systemCallbackRemarks: "Addressed all inbound callbacks",
+    leadTypeFollowedUp: "Reassigned Leads",
+    systemCallbackRemarks: "None",
     confirmedVisitsTomorrow: "",
     highIntentFollowupsTomorrow: "",
     totalRevisitCommitments: "0",
@@ -897,85 +897,85 @@ function Tally({ userId, email, fullName }: { userId: string; email: string; ful
     <main className="tally-container py-6">
       {/* ── Header ── */}
       <header className="header-grid">
-          <div className="section-panel min-w-0">
-            <p className="text-xs text-muted-foreground">{dateLabel}</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">{greetingData.greeting}</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{greetingData.subtext}</p>
-            <form
-              className="assigned-pill mt-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void saveAssigned();
-              }}
-            >
-              <label htmlFor="calls-assigned">My total calls assigned</label>
-              <input
-                id="calls-assigned"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={100000}
-                placeholder="e.g. 60"
-                value={assignedDraft}
-                onChange={(e) => setAssignedDraft(e.target.value)}
-                onBlur={() => void saveAssigned()}
-              />
-              {callsAssigned > 0 && <span className="assigned-pill__progress">{totals.dialed}/{callsAssigned}</span>}
-            </form>
-          </div>
-
-          <div className="header-grid__middle min-w-0">
-            <TeamGoal
-              members={teamProgress}
-              currentUserId={userId}
-              ready={teamProgressReady}
-              error={teamProgressError}
-              onOpenChat={() => setChatOpen(true)}
+        <div className="section-panel min-w-0">
+          <p className="text-xs text-muted-foreground">{dateLabel}</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">{greetingData.greeting}</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{greetingData.subtext}</p>
+          <form
+            className="assigned-pill mt-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void saveAssigned();
+            }}
+          >
+            <label htmlFor="calls-assigned">My total calls assigned</label>
+            <input
+              id="calls-assigned"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={100000}
+              placeholder="e.g. 60"
+              value={assignedDraft}
+              onChange={(e) => setAssignedDraft(e.target.value)}
+              onBlur={() => void saveAssigned()}
             />
-          </div>
+            {callsAssigned > 0 && <span className="assigned-pill__progress">{totals.dialed}/{callsAssigned}</span>}
+          </form>
+        </div>
 
-          <div className="section-panel header-actions">
-            <ThemeToggle />
-            <button
-              type="button"
-              className={`btn btn--sm ${editing ? "btn--primary" : "btn--outline"}`}
-              onClick={() => {
-                if (editing && hasReordered) {
-                  saveLayoutPreference();
-                }
-                setEditing((e) => !e);
-              }}
-            >
-              {editing ? (
-                <>
-                  <Check className="h-4 w-4" strokeWidth={2} />
-                  <span>Done</span>
-                </>
-              ) : (
-                <>
-                  <Pencil className="h-4 w-4" strokeWidth={2} />
-                  <span>Edit counters</span>
-                </>
-              )}
-            </button>
-            <a
-              href={CHROME_EXTENSION_ZIP}
-              download="count-it-extension.zip"
-              className="btn btn--sm btn--outline"
-              title="Download Count-It Chrome Extension ZIP"
-            >
-              <Puzzle className="h-4 w-4" strokeWidth={2} />
-              <span>Extension</span>
-            </a>
-            <button
-              type="button"
-              className="btn btn--sm btn--ghost text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => supabase.auth.signOut()}
-            >
-              <LogOut className="h-4 w-4" strokeWidth={2} />
-              <span>Sign out</span>
-            </button>
-          </div>
+        <div className="header-grid__middle min-w-0">
+          <TeamGoal
+            members={teamProgress}
+            currentUserId={userId}
+            ready={teamProgressReady}
+            error={teamProgressError}
+            onOpenChat={() => setChatOpen(true)}
+          />
+        </div>
+
+        <div className="section-panel header-actions">
+          <ThemeToggle />
+          <button
+            type="button"
+            className={`btn btn--sm ${editing ? "btn--primary" : "btn--outline"}`}
+            onClick={() => {
+              if (editing && hasReordered) {
+                saveLayoutPreference();
+              }
+              setEditing((e) => !e);
+            }}
+          >
+            {editing ? (
+              <>
+                <Check className="h-4 w-4" strokeWidth={2} />
+                <span>Done</span>
+              </>
+            ) : (
+              <>
+                <Pencil className="h-4 w-4" strokeWidth={2} />
+                <span>Edit counters</span>
+              </>
+            )}
+          </button>
+          <a
+            href={CHROME_EXTENSION_ZIP}
+            download="count-it-extension.zip"
+            className="btn btn--sm btn--outline"
+            title="Download Count-It Chrome Extension ZIP"
+          >
+            <Puzzle className="h-4 w-4" strokeWidth={2} />
+            <span>Extension</span>
+          </a>
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => supabase.auth.signOut()}
+          >
+            <LogOut className="h-4 w-4" strokeWidth={2} />
+            <span>Sign out</span>
+          </button>
+        </div>
       </header>
 
       <ExtensionPrompt />

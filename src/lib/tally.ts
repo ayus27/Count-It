@@ -339,7 +339,6 @@ export function generateGoogleFormReport(
     `========================================`,
     `IIC - FOOTSET TEAM DAILY REPORT`,
     `Date: ${day}`,
-    `Generated in exact Google Form sequence:`,
     `========================================`,
     `1. Email: ${email || "N/A"}`,
     `2. Full Name: ${userName || "N/A"}`,
